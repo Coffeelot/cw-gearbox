@@ -32,6 +32,7 @@ Check the Config for `UseOtherCheck` if you want to implement another script for
 - Limited to the vehicles original amount of gears (no extra from upgrade for example)
 - Doesn't work well with gears over 5
 - Doesn't handle gear ratios, only uses default ones
+- Tested on game build 3095, not sure what older ones it works on
 - This script in itself doesn't add any transmission swapping. You need to enable it in the vehicle handling files if you do not use something like [CW-Tuning](https://cw-scripts.tebex.io/package/5987879)
 - **Can _not_ be** applied to vehicles that do not already have the `strAdvancedFlags` in it's handling.meta file
 - Only tested with OxLib for keybind, but has code for basic keybinds also
