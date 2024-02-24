@@ -1,6 +1,8 @@
 # cw-gearbox
 Add manual gearing to you vehicles. 
 
+Default buttons are R and Q, so you might need to rebind some stuff or change these.
+
 ### Key Features:
 
 - Manual Gear Controls: Take full control of your vehicle's gears, enhancing realism and immersion.
