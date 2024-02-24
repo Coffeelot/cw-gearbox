@@ -1,7 +1,7 @@
 # cw-gearbox
 Add manual gearing to you vehicles. 
 
-Key Features:
+### Key Features:
 
 - Manual Gear Controls: Take full control of your vehicle's gears, enhancing realism and immersion.
 - Efficient Resource Management: Minimize resource consumption for optimal client performance. Running at a 0.0ms resmon on idle and a 0.02ms when driving a manual
