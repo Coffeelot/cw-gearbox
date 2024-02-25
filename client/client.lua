@@ -19,6 +19,9 @@ local currentVehicle = 0
 local currentSeat = 0
 local isGearing = false
 
+local manualFlag = 1024
+local lateGearFlag = 2710
+
 local function isDriver(vehicle)
     if (GetPedInVehicleSeat(vehicle, -1) == PlayerPedId()) then return true end
     return false
@@ -58,7 +61,14 @@ local function addManualFlag(flag)
     end
 
     -- Add flag 1024
-    flag = bitOper(flag, 1024, OR)
+    flag = bitOper(flag, manualFlag, OR)
+
+    return math.floor(flag)
+end
+
+local function addLateGearFlag(flag)
+    -- Add flag lateGearFlag
+    flag = bitOper(flag, lateGearFlag, OR)
 
     return math.floor(flag)
 end
@@ -76,7 +86,7 @@ local function removeManualFlag(flag)
     end
 
     -- Add flag 1024
-    flag = bitOper(flag, 1024, XOR)
+    flag = bitOper(flag, manualFlag, XOR)
 
     return math.floor(flag)
 end
@@ -86,8 +96,10 @@ local function hasFlag(vehicle, adv_flags)
     if adv_flags == 0 and useDebug then 
         print('^1This vehicle either has empty advancedflags or no advanced flag in its handling file')
     end
-    local flag_check_1024 = bitOper(adv_flags, 1024, AND)
-    return flag_check_1024 == 1024
+    local flag_check_1024 = bitOper(adv_flags, manualFlag, AND)
+    local vehicleHasFlag = flag_check_1024 == manualFlag
+    if useDebug then print('Vehicle has flag:', vehicleHasFlag) end
+    return vehicleHasFlag
 end
 
 local function createThread()
@@ -129,6 +141,9 @@ local function vehicleHasManualGearBox(vehicle)
                 return
             else
                 local newFlag = addManualFlag(adv_flags)
+                if useDebug then print('after manual flag added', newFlag) end
+                -- newFlag = addLateGearFlag(newFlag)
+                -- if useDebug then print('after late gear flag added', newFlag) end
                 local adv_flags = SetVehicleHandlingInt(vehicle, 'CCarHandlingData', 'strAdvancedFlags', newFlag)
                 ModifyVehicleTopSpeed(vehicle, 1.0)
                 topGear = GetVehicleHighGear(vehicle)
@@ -148,7 +163,7 @@ AddEventHandler('gameEventTriggered', function (name, args)
     if name == 'CEventNetworkPlayerEnteredVehicle' then
         local Player = PlayerPedId()
         local vehicle = GetVehiclePedIsUsing(Player)
-        if not isDriver(vehicle) then return end -- check for if driverseat
+        -- if not isDriver(vehicle) then return end -- check for if driverseat
         vehicleHasManualGearBox(vehicle)
     end
 end)
@@ -270,13 +285,13 @@ end
 
 AddStateBagChangeHandler("gearchange", nil, function(bagName, key, value) 
     local veh = GetEntityFromStateBagName(bagName)
-    -- Whoops, we don't have a valid entity!
-    if entity == 0 then return end
-    -- We don't want to freeze the entity position if the entity collision hasn't loaded yet
-    while not HasCollisionLoadedAroundEntity(entity) do
-        -- The entity went out of our scope before the collision loaded
-        if not DoesEntityExist(entity) then return end
+    if isDriver(veh) then return end
+    if useDebug then print('gear change for veh', veh, value) end
+    if veh == 0 then return end
+    while not HasCollisionLoadedAroundEntity(veh) do
+        if not DoesEntityExist(veh) then return end
         Wait(250)
     end
+    local Player = PlayerPedId()
     Citizen.InvokeNative(setGear, veh, value)
 end)
