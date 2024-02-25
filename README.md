@@ -28,7 +28,7 @@ Check the Config for `UseOtherCheck` if you want to implement another script for
 
 [![Join The discord!](https://cdn.discordapp.com/attachments/977876510620909579/1013102122985857064/discordJoin.png)](https://discord.gg/FJY4mtjaKr )
 
-## Limitations
+# Limitations
 - Limited to the vehicles original amount of gears (no extra from upgrade for example)
 - Doesn't work well with gears over 5
 - Doesn't handle gear ratios, only uses default ones
@@ -37,3 +37,23 @@ Check the Config for `UseOtherCheck` if you want to implement another script for
 - **Can _not_ be** applied to vehicles that do not already have the `strAdvancedFlags` in it's handling.meta file
 - Only tested with OxLib for keybind, but has code for basic keybinds also
 - Supports oxlib or qbcore for notify (legit one line to change if you want something else tho)
+
+# Adding the flag manually
+**This does take some handling.meta know-how.** You need to add the CF_GEARBOX_MANUAL flag (or in bit: 400)
+
+> One example of a working Advanced Flag is 4000400 
+
+[This tool](https://adam10603.github.io/GTA5VehicleFlagTool/) is great for modifying existing flags, you want this flag enabled:
+
+![this](https://media.discordapp.net/attachments/1206659469258264576/1211080190231453868/image.png?ex=65ece552&is=65da7052&hm=793e951de62930c6a1d28fb8ce945fc94b2c4b33714baeac349b15b8e31ab71a&=&format=webp&quality=lossless&width=792&height=291)
+
+One example of the SubHandlingData for a vehicle with the flag enabled:
+```xml
+			<SubHandlingData>
+			  <Item type="CCarHandlingData">
+				<strAdvancedFlags>400</strAdvancedFlags>
+			  </Item>
+			  <Item type="NULL" />
+			  <Item type="NULL" />
+			</SubHandlingData>
+```
