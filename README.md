@@ -9,7 +9,7 @@ Default buttons are R and Q, so you might need to rebind some stuff or change th
 - Gear skipping
 - Efficient Resource Management: Minimize resource consumption for optimal client performance. Running at a 0.0ms resmon on idle and a 0.02ms when driving a manual
 - Clutch Simulation: Experience authentic clutch engagement, adding depth to your driving interactions.
-- Synchronized Gear Changes
+- Synchronized Gear Changes (doesn't work for passengers currently)
 - Support for oxlib and QBcore (for notifications and keybind)
 
 > ❗ Hot tip:  Read the damn readme and config before reporting issues
