@@ -20,6 +20,10 @@ Default buttons are R and Q, so you might need to rebind some stuff or change th
 Check the Config for `UseOtherCheck` if you want to implement another script for swappable transmissions
 > As of the release of this. CW-Tuning also recieved an update (see our Discord for patch notes)
 
+# Showcase
+
+[Youtube Link](https://www.youtube.com/watch?v=UTnGFwetMfo) 🎬
+
 # Links
 ### ⭐ Check out our [Tebex store](https://cw-scripts.tebex.io/category/2523396) for some cheap scripts ⭐
 ### 🥳 Get more [Free scripts](https://github.com/stars/Coffeelot/lists/cw-scripts) 🥳
