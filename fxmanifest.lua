@@ -3,12 +3,11 @@ lua54 'yes'
 
 game 'gta5'
 author 'Coffeelot'
-description 'Manual gearing'
+description 'Manual gearing by Coffeelot'
 
 shared_scripts {
-    '@qb-core/shared/locale.lua',
     'config.lua',
-    '@ox_lib/init.lua',
+    '@ox_lib/init.lua', -- comment/remove this line if you dont use oxlib
 }
 
 client_scripts{
@@ -20,7 +19,4 @@ server_scripts{
 
 dependency{
     'oxmysql',
-}
-
-exports {
 }
