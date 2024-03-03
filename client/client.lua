@@ -6,6 +6,12 @@ if not Config.OxLib then
     QBCore = exports['qb-core']:GetCoreObject()
 end
 
+if GetGameBuildNumber() < 3095 then
+    print('^1THIS SERVER GAME BUILD IS TO LOW TO USE CW GEARBOX!')
+    print("Version:", GetGameBuildNumber())
+    print("Least required version:", 3095)
+end 
+
 local lowestGear = 0
 local topGear = 5
 local clutchUp = 1.0
@@ -67,13 +73,14 @@ local function playAnimation(rhd)
         end
         TaskPlayAnim(PlayerPedId(), LanimationDict, LanimationName, 8.0, 1.0, 1000, 16, 0, 0, 0, 0)
 
-        Wait(1000)
+        Wait()
         StopAnimTask(PlayerPedId(), LanimationDict, LanimationName, 1.0)
     end
 end
 
 local function handleAnimation(vehicle)
     local rhd = hashedRhd[GetEntityModel(vehicle)]
+    print('rhd',rhd, GetEntityModel(vehicle))
     local class = GetVehicleClass(vehicle)
     if class == 8 or class == 21 or class == 16 or class == 15 or class == 14 or class == 13 then
         return
