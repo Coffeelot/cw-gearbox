@@ -12,3 +12,7 @@ Config.Keys = {
     gearUp = 'R',
     gearDown = 'Q'
 }
+
+Config.rhdCars = {
+    "carNameHere",
+}

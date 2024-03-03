@@ -6,7 +6,6 @@ if not Config.OxLib then
     QBCore = exports['qb-core']:GetCoreObject()
 end
 
-
 local lowestGear = 0
 local topGear = 5
 local clutchUp = 1.0
@@ -22,6 +21,17 @@ local isGearing = false
 local manualFlag = 1024
 local lateGearFlag = 2710
 
+local LanimationDict = "veh@driveby@first_person@passenger_rear_right_handed@smg" 
+local LanimationName = "outro_90r"
+local RanimationDict = "veh@driveby@first_person@passenger_rear_left_handed@smg" 
+local RanimationName = "outro_90l"
+
+local hashedRhd = {}
+
+for i, v in pairs(Config.rhdCars) do
+    hashedRhd[joaat(v)] = true
+end
+
 local function isDriver(vehicle)
     if (GetPedInVehicleSeat(vehicle, -1) == PlayerPedId()) then return true end
     return false
@@ -36,6 +46,39 @@ local function notify(text, type)
     else 
         QBCore.Functions.Notify(text, type)
     end
+end
+
+local function playAnimation(rhd)
+    if rhd then
+        if useDebug then print('RHD animation') end
+        RequestAnimDict(RanimationDict)
+        while not HasAnimDictLoaded(RanimationDict) do
+            Wait(0)
+        end
+        TaskPlayAnim(PlayerPedId(), RanimationDict, RanimationName, 8.0, 1.0, 1000, 16, 0, 0, 0, 0)
+    
+        Wait(1000)
+        StopAnimTask(PlayerPedId(), RanimationDict, RanimationName, 1.0)
+    else
+        if useDebug then print('LHD animation') end
+        RequestAnimDict(LanimationDict)
+        while not HasAnimDictLoaded(LanimationDict) do
+            Wait(0)
+        end
+        TaskPlayAnim(PlayerPedId(), LanimationDict, LanimationName, 8.0, 1.0, 1000, 16, 0, 0, 0, 0)
+
+        Wait(1000)
+        StopAnimTask(PlayerPedId(), LanimationDict, LanimationName, 1.0)
+    end
+end
+
+local function handleAnimation(vehicle)
+    local rhd = hashedRhd[GetEntityModel(vehicle)]
+    local class = GetVehicleClass(vehicle)
+    if class == 8 or class == 21 or class == 16 or class == 15 or class == 14 or class == 13 then
+        return
+    end
+    playAnimation(rhd)
 end
 
 local OR, XOR, AND = 1, 3, 4
@@ -184,6 +227,7 @@ local function SetVehicleCurrentGear(veh, gear, clutch, currentGear, gearingUp)
     if isGearing then return end
     setNoGear(veh)
     isGearing = true
+    handleAnimation(veh)
     SetTimeout(Config.ClutchTime/clutch, function () -- should be 900/clutch but this lets manual gearing be a tad faster
         isGearing = false
         setNextGear(veh)
