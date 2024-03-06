@@ -1,6 +1,5 @@
 local useDebug = Config.Debug
 
-local QBCore = nil
 if not Config.OxLib then
     if useDebug then print('^3 OxLib is not enabled for CW gearbox. Creating Core Object') end
     QBCore = exports['qb-core']:GetCoreObject()
@@ -80,7 +79,6 @@ end
 
 local function handleAnimation(vehicle)
     local rhd = hashedRhd[GetEntityModel(vehicle)]
-    print('rhd',rhd, GetEntityModel(vehicle))
     local class = GetVehicleClass(vehicle)
     if class == 8 or class == 21 or class == 16 or class == 15 or class == 14 or class == 13 then
         return
@@ -231,7 +229,7 @@ end
 
 local function SetVehicleCurrentGear(veh, gear, clutch, currentGear, gearingUp)
     if useDebug then notify('next gear: '.. nextGear) end
-    if isGearing then return end
+    if isGearing then if useDebug then print('^3Is gearing. skipping') end return end
     setNoGear(veh)
     isGearing = true
     handleAnimation(veh)
@@ -240,6 +238,46 @@ local function SetVehicleCurrentGear(veh, gear, clutch, currentGear, gearingUp)
         setNextGear(veh)
     end)
 end
+
+local function shiftUp()
+    local Player = PlayerPedId()
+    local vehicle = GetVehiclePedIsUsing(Player)
+    if not isDriver(vehicle) then if useDebug then print('^1Not driver') end return end
+    if not hasFlag(vehicle) then if useDebug then print('^No flag') end return end
+    local currentGear = GetVehicleCurrentGear(vehicle)
+
+    if useDebug then print('Before: CurrentGear:', currentGear, 'TopGear:', topGear, 'nextGear', nextGear) end
+    if currentGear == topGear then return end
+    
+    if currentGear == lowestGear then
+        nextGear = nextGear+1
+    else
+        nextGear = GetVehicleNextGear(vehicle)+1
+    end
+    if useDebug then print('After: CurrentGear:', currentGear, 'TopGear:', topGear, 'nextGear', nextGear) end
+    if nextGear > topGear then nextGear = topGear end
+    SetVehicleCurrentGear( vehicle, nextGear, clutchUp, currentGear, true)
+    ModifyVehicleTopSpeed(vehicle,1)
+end
+
+local function shiftDown()
+    local Player = PlayerPedId()
+    local vehicle = GetVehiclePedIsUsing(Player)
+    if not isDriver(vehicle) then return end
+    if not hasFlag(vehicle) then return end
+    local currentGear = GetVehicleCurrentGear(vehicle)
+
+    if currentGear == lowestGear then
+        local newNextGear = nextGear-1
+        if newNextGear > lowestGear then nextGear = newNextGear end
+    else
+        local newNextGear = currentGear-1
+        if newNextGear > lowestGear then nextGear = newNextGear end
+    end
+    SetVehicleCurrentGear( vehicle,  nextGear , clutchDown, currentGear, false)
+    ModifyVehicleTopSpeed(vehicle,1)
+end
+
 
 if Config.OxLib then
     if useDebug then print('^2OxLib is enabled') end
@@ -251,22 +289,7 @@ if Config.OxLib then
             description = 'Shift Up',
             defaultKey = Config.Keys.gearUp,
             onPressed = function(self)
-                local Player = PlayerPedId()
-                local vehicle = GetVehiclePedIsUsing(Player)
-                if not isDriver(vehicle) then return end
-                if not hasFlag(vehicle) then return end
-                local currentGear = GetVehicleCurrentGear(vehicle)
-                if currentGear == topGear then return end
-                if nextGear > topGear then return end
-        
-                if currentGear == lowestGear then
-                    nextGear = nextGear+1
-                else
-                    nextGear = GetVehicleNextGear(vehicle)+1
-                end
-                
-                SetVehicleCurrentGear( vehicle, nextGear, clutchUp, currentGear, true)
-                ModifyVehicleTopSpeed(vehicle,1)
+                shiftUp()
             end
         })
         
@@ -275,61 +298,18 @@ if Config.OxLib then
             description = 'Shift Down',
             defaultKey = Config.Keys.gearDown,
             onPressed = function(self)
-                local Player = PlayerPedId()
-                local vehicle = GetVehiclePedIsUsing(Player)
-                if not isDriver(vehicle) then return end
-                if not hasFlag(vehicle) then return end
-        
-                local currentGear = GetVehicleCurrentGear(vehicle)
-                if currentGear == lowestGear then
-                    local newNextGear = nextGear-1
-                    if newNextGear > 0 then nextGear = newNextGear end
-                else
-                    local newNextGear = GetVehicleNextGear(vehicle)-1
-                    if newNextGear > 0 then nextGear = newNextGear end
-                end
-                SetVehicleCurrentGear( vehicle,  nextGear , clutchDown, currentGear, false)
-                ModifyVehicleTopSpeed(vehicle,1)
+                shiftDown()
             end
         })
     end
 else
     RegisterCommand("clickShiftUp", function()
-        local Player = PlayerPedId()
-        local vehicle = GetVehiclePedIsUsing(Player)
-        if not isDriver(vehicle) then return end
-        if not hasFlag(vehicle) then return end
-        local currentGear = GetVehicleCurrentGear(vehicle)
-        if currentGear == topGear then return end
-        if nextGear > topGear then return end
-
-        if currentGear == lowestGear then
-            nextGear = nextGear+1
-        else
-            nextGear = GetVehicleNextGear(vehicle)+1
-        end
-        
-        SetVehicleCurrentGear( vehicle, nextGear, clutchUp, currentGear, true)
-        ModifyVehicleTopSpeed(vehicle,1)
+        shiftUp()
     end, false)
     RegisterKeyMapping("clickShiftUp", "Shift Up", "keyboard", Config.Keys.gearUp)
 
     RegisterCommand("clickShiftDown", function()
-        local Player = PlayerPedId()
-        local vehicle = GetVehiclePedIsUsing(Player)
-        if not isDriver(vehicle) then return end
-        if not hasFlag(vehicle) then return end
-
-        local currentGear = GetVehicleCurrentGear(vehicle)
-        if currentGear == lowestGear then
-            local newNextGear = nextGear-1
-            if newNextGear > 0 then nextGear = newNextGear end
-        else
-            local newNextGear = GetVehicleNextGear(vehicle)-1
-            if newNextGear > 0 then nextGear = newNextGear end
-        end
-        SetVehicleCurrentGear( vehicle,  nextGear , clutchDown, currentGear, false)
-        ModifyVehicleTopSpeed(vehicle,1)
+        shiftDown()
     end, false)
     RegisterKeyMapping("clickShiftDown", "Shift Up", "keyboard", Config.Keys.gearDown)
 end
