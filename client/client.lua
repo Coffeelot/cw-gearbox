@@ -229,7 +229,12 @@ end
 
 local function SetVehicleCurrentGear(veh, gear, clutch, currentGear, gearingUp)
     if useDebug then notify('next gear: '.. nextGear) end
-    if isGearing then if useDebug then print('^3Is gearing. skipping') end return end
+    if isGearing then 
+        if useDebug then print('^3Is gearing. skipping') end
+        SetTimeout(Config.ClutchTime/clutch, function () -- should be 900/clutch but this lets manual gearing be a tad faster
+            isGearing = false
+        end)
+        return end
     setNoGear(veh)
     isGearing = true
     handleAnimation(veh)
@@ -254,8 +259,10 @@ local function shiftUp()
     else
         nextGear = GetVehicleNextGear(vehicle)+1
     end
+
     if useDebug then print('After: CurrentGear:', currentGear, 'TopGear:', topGear, 'nextGear', nextGear) end
     if nextGear > topGear then nextGear = topGear end
+
     SetVehicleCurrentGear( vehicle, nextGear, clutchUp, currentGear, true)
     ModifyVehicleTopSpeed(vehicle,1)
 end
