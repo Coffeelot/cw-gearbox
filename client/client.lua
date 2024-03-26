@@ -96,7 +96,7 @@ local function bitOper(flag, checkFor, oper)
 	return result
 end
 
-local function addManualFlag(flag)
+local function addManualFlagToFlag(flag)
     local hasFullAutoFlag = bitOper(flag, 512, AND) == 512
     local hasDirectShiftFlag = bitOper(flag, 2048, AND) == 2048
 
@@ -121,7 +121,7 @@ local function addLateGearFlag(flag)
     return math.floor(flag)
 end
 
-local function removeManualFlag(flag)
+local function removeManualFlagFromFlag(flag)
     local hasFullAutoFlag = bitOper(flag, 512, AND) == 512
     local hasDirectShiftFlag = bitOper(flag, 2048, AND) == 2048
 
@@ -166,16 +166,49 @@ local function createThread()
     end)
 end
 
+local function removeManualFlag(vehicle)
+    local adv_flags = GetVehicleHandlingInt(vehicle, 'CCarHandlingData', 'strAdvancedFlags')
+    if not Entity(vehicle).state.originalFlag then
+        if useDebug then print('Setting default flag') end
+        Entity(vehicle).state:set('originalFlag', adv_flags, true)
+    end
+    local newFlag = removeManualFlagFromFlag(adv_flags)
+    SetVehicleHandlingInt(vehicle, 'CCarHandlingData', 'strAdvancedFlags', newFlag)
+    ModifyVehicleTopSpeed(vehicle, 1.0)
+end exports('removeManualFlag', removeManualFlag)
+
+local function addManualFlag(vehicle)
+    
+    local adv_flags = GetVehicleHandlingInt(vehicle, 'CCarHandlingData', 'strAdvancedFlags')
+    if not Entity(vehicle).state.originalFlag then
+        if useDebug then print('Setting default flag') end
+        Entity(vehicle).state:set('originalFlag', adv_flags, true)
+    end
+    local newFlag = addManualFlagToFlag(adv_flags)
+    SetVehicleHandlingInt(vehicle, 'CCarHandlingData', 'strAdvancedFlags', newFlag)
+    ModifyVehicleTopSpeed(vehicle, 1.0)
+end exports('addManualFlag', addManualFlag)
+
 local function vehicleHasManualGearBox(vehicle)
     local adv_flags = GetVehicleHandlingInt(vehicle, 'CCarHandlingData', 'strAdvancedFlags')
-    if hasFlag(vehicle, adv_flags) then
+    local originalFlag = Entity(vehicle).state.originalFlag
+    if not originalFlag then 
+        Entity(vehicle).state:set('originalFlag', adv_flags, true)
+    end
+    if hasFlag(vehicle, adv_flags) then -- if car is a manual
         if Config.CwTuning then
-            if not exports['cw-tuning']:vehicleIsManual(vehicle) then -- If the car has the flag but no the gearbox then remove it
-                local newFlag = removeManualFlag(adv_flags)
-                local adv_flags = SetVehicleHandlingInt(vehicle, 'CCarHandlingData', 'strAdvancedFlags', newFlag)
-                ModifyVehicleTopSpeed(vehicle, 1.0)
+            if exports['cw-tuning']:vehicleIsAutomatic(vehicle) then -- If the car has the flag but no the gearbox then remove it
+                if useDebug then 
+                    print('Removing flag')
+                    print('has automatic',exports['cw-tuning']:vehicleIsAutomatic(vehicle))
+                end
+                removeManualFlag(vehicle)
                 return
-            else
+            end
+            if not hasFlag(vehicle, originalFlag) then -- car should be an automatic and does not have a swapped gearbox
+                if useDebug then print("car should be an automatic and does not have a swapped gearbox") end
+                removeManualFlag(vehicleHasManualGearBox)
+                return
             end
         end
         topGear = GetVehicleHighGear(vehicle)
@@ -183,23 +216,27 @@ local function vehicleHasManualGearBox(vehicle)
         clutchUp = GetVehicleHandlingFloat(vehicle, 'CHandlingData', 'fClutchChangeRateScaleUpShift')
         notify('This vehicle is a manual')
         createThread()
-    else
+    else -- if car ISNT a manual
         if Config.CwTuning then
-            if not exports['cw-tuning']:vehicleIsManual(vehicle) then 
+            if exports['cw-tuning']:vehicleIsAutomatic(vehicle) then -- car should be an automatic
                 return
-            else
-                local newFlag = addManualFlag(adv_flags)
-                if useDebug then print('after manual flag added', newFlag) end
-                -- newFlag = addLateGearFlag(newFlag)
-                -- if useDebug then print('after late gear flag added', newFlag) end
-                local adv_flags = SetVehicleHandlingInt(vehicle, 'CCarHandlingData', 'strAdvancedFlags', newFlag)
-                ModifyVehicleTopSpeed(vehicle, 1.0)
-                topGear = GetVehicleHighGear(vehicle)
-                clutchDown = GetVehicleHandlingFloat(vehicle, 'CHandlingData', 'fClutchChangeRateScaleDownShift')
-                clutchUp = GetVehicleHandlingFloat(vehicle, 'CHandlingData', 'fClutchChangeRateScaleUpShift')
-                notify('This vehicle is a manual')
-                createThread()
+            end 
+            if not exports['cw-tuning']:vehicleIsManual(vehicle) and hasFlag(vehicle, originalFlag) then -- doesnt have manual gearbox
+                if useDebug then print("car should be a manual and does not have a swapped gearbox") end
+                addManualFlag(vehicle)
+                return
             end
+            if not hasFlag(vehicle, originalFlag) then -- car shouln't be an automatic and does not have a swapped gearbox
+                removeManualFlag(vehicleHasManualGearBox)
+                return
+            end
+
+            addManualFlag(vehicle)
+            topGear = GetVehicleHighGear(vehicle)
+            clutchDown = GetVehicleHandlingFloat(vehicle, 'CHandlingData', 'fClutchChangeRateScaleDownShift')
+            clutchUp = GetVehicleHandlingFloat(vehicle, 'CHandlingData', 'fClutchChangeRateScaleUpShift')
+            notify('This vehicle is a manual')
+            createThread()
         elseif Config.UseOtherCheck then
             print('^1If you can see this print then someone enabled UseOtherCheck for manual gears but didnt add any code') -- REMOVE THIS IF YOU IMPLEMENT SOMETHING HERE
             -- ADD YOUR CHECK HERE

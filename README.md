@@ -31,7 +31,7 @@ Check the Config for `UseOtherCheck` if you want to implement another script for
 
 ### **Support, updates and script previews**:
 
-[![Join The discord!](https://cdn.discordapp.com/attachments/977876510620909579/1013102122985857064/discordJoin.png)](https://discord.gg/FJY4mtjaKr )
+[![Join The discord!](https://cdn.discordapp.com/attachments/977876510620909579/1013102122985857064/discordJoin.png)](https://discord.gg/FJY4mtjaKr)
 
 # Limitations
 - Limited to the vehicles original amount of gears (no extra from upgrade for example)
