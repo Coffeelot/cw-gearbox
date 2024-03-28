@@ -248,6 +248,12 @@ AddEventHandler('gameEventTriggered', function (name, args)
             return
         end
         -- if not isDriver(vehicle) then return end -- check for if driverseat
+        isGearing = false
+        nextGear = 1
+        lowestGear = 0
+        topGear = 5
+        clutchUp = 1.0
+        clutchDown = 1.0
         vehicleHasManualGearBox(vehicle)
     end
 end)
@@ -291,7 +297,7 @@ RegisterCommand("resetGears", function()
     end
     SetTimeout(5000, function () -- should be 900/clutch but this lets manual gearing be a tad faster
         isGearing = false
-        setNextGear(1)
+        nextGear = 1
     end)
 end, false)
 
