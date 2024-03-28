@@ -17,10 +17,6 @@ local clutchUp = 1.0
 local clutchDown = 1.0
 
 local nextGear = 0
-local isInVehicle = false
-local isEnteringVehicle = false
-local currentVehicle = 0
-local currentSeat = 0
 local isGearing = false
 
 local manualFlag = 1024
@@ -248,6 +244,9 @@ AddEventHandler('gameEventTriggered', function (name, args)
     if name == 'CEventNetworkPlayerEnteredVehicle' then
         local Player = PlayerPedId()
         local vehicle = GetVehiclePedIsUsing(Player)
+        if not isDriver(vehicle) then
+            return
+        end
         -- if not isDriver(vehicle) then return end -- check for if driverseat
         vehicleHasManualGearBox(vehicle)
     end
@@ -256,7 +255,6 @@ end)
 
 local setGear = GetHashKey('SET_VEHICLE_CURRENT_GEAR') & 0xFFFFFFFF
 local function setNextGear(veh)
-    local currentGear = GetVehicleCurrentGear(veh)
     Citizen.InvokeNative(setGear, veh, nextGear)
     Entity(veh).state:set('gearchange', nextGear, true)
 end
@@ -265,13 +263,17 @@ local function setNoGear(veh)
 end
 
 local function SetVehicleCurrentGear(veh, gear, clutch, currentGear, gearingUp)
+    if GetEntitySpeedVector(veh, true).y < 0 then 
+        return
+    end
     if useDebug then notify('next gear: '.. nextGear) end
     if isGearing then 
         if useDebug then print('^3Is gearing. skipping') end
         SetTimeout(Config.ClutchTime/clutch, function () -- should be 900/clutch but this lets manual gearing be a tad faster
             isGearing = false
         end)
-        return end
+        return 
+    end
     setNoGear(veh)
     isGearing = true
     handleAnimation(veh)
@@ -281,9 +283,22 @@ local function SetVehicleCurrentGear(veh, gear, clutch, currentGear, gearingUp)
     end)
 end
 
+RegisterCommand("resetGears", function()
+    notify('Resetting gearing in 5 sec')
+    if useDebug then 
+        print('Was gearing:', isGearing)
+        print('next gear:', nextGear)
+    end
+    SetTimeout(5000, function () -- should be 900/clutch but this lets manual gearing be a tad faster
+        isGearing = false
+        setNextGear(1)
+    end)
+end, false)
+
 local function shiftUp()
     local Player = PlayerPedId()
     local vehicle = GetVehiclePedIsUsing(Player)
+    if vehicle == 0 then return end
     if not isDriver(vehicle) then if useDebug then print('^1Not driver') end return end
     if not hasFlag(vehicle) then if useDebug then print('^No flag') end return end
     local currentGear = GetVehicleCurrentGear(vehicle)
