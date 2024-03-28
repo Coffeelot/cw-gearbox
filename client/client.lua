@@ -207,7 +207,7 @@ local function vehicleHasManualGearBox(vehicle)
             end
             if not hasFlag(vehicle, originalFlag) then -- car should be an automatic and does not have a swapped gearbox
                 if useDebug then print("car should be an automatic and does not have a swapped gearbox") end
-                removeManualFlag(vehicleHasManualGearBox)
+                removeManualFlag(vehicle)
                 return
             end
         end
@@ -227,7 +227,7 @@ local function vehicleHasManualGearBox(vehicle)
                 return
             end
             if not hasFlag(vehicle, originalFlag) then -- car shouln't be an automatic and does not have a swapped gearbox
-                removeManualFlag(vehicleHasManualGearBox)
+                removeManualFlag(vehicle)
                 return
             end
 
