@@ -142,7 +142,7 @@ local function hasFlag(vehicle, adv_flags)
     end
     local flag_check_1024 = bitOper(adv_flags, manualFlag, AND)
     local vehicleHasFlag = flag_check_1024 == manualFlag
-    if useDebug then print('Vehicle has flag:', vehicleHasFlag) end
+    if useDebug then print('Vehicle has flag:', adv_flags, vehicleHasFlag) end
     return vehicleHasFlag
 end
 
@@ -163,6 +163,7 @@ local function createThread()
 end
 
 local function removeManualFlag(vehicle)
+    if useDebug then print('Removing manual flag') end
     local adv_flags = GetVehicleHandlingInt(vehicle, 'CCarHandlingData', 'strAdvancedFlags')
     if not Entity(vehicle).state.originalFlag then
         if useDebug then print('Setting default flag') end
@@ -174,6 +175,7 @@ local function removeManualFlag(vehicle)
 end exports('removeManualFlag', removeManualFlag)
 
 local function addManualFlag(vehicle)
+    if useDebug then print('Adding manual flag') end
     
     local adv_flags = GetVehicleHandlingInt(vehicle, 'CCarHandlingData', 'strAdvancedFlags')
     if not Entity(vehicle).state.originalFlag then
@@ -185,23 +187,33 @@ local function addManualFlag(vehicle)
     ModifyVehicleTopSpeed(vehicle, 1.0)
 end exports('addManualFlag', addManualFlag)
 
+local function vehicleShouldHaveFlag(vehicle)
+    local originalFlag = Entity(vehicle).state.originalFlag
+    if exports['cw-tuning']:vehicleIsAutomatic(vehicle) then -- vehicle is automatic
+        if useDebug then print('Vehicle is an AUTOMATIC as per cw tuning') end
+        return false
+    end
+    if exports['cw-tuning']:vehicleIsManual(vehicle) then
+        if useDebug then print('Vehicle is an MANUAL as per cw tuning') end
+        return true
+    end
+    return false
+end
+
 local function vehicleHasManualGearBox(vehicle)
     local adv_flags = GetVehicleHandlingInt(vehicle, 'CCarHandlingData', 'strAdvancedFlags')
     local originalFlag = Entity(vehicle).state.originalFlag
     if not originalFlag then 
+        if useDebug then print('Setting original flag to', adv_flags) end
         Entity(vehicle).state:set('originalFlag', adv_flags, true)
     end
     if hasFlag(vehicle, adv_flags) then -- if car is a manual
         if Config.CwTuning then
-            if exports['cw-tuning']:vehicleIsAutomatic(vehicle) then -- If the car has the flag but no the gearbox then remove it
-                if useDebug then 
-                    print('Removing flag')
-                    print('has automatic',exports['cw-tuning']:vehicleIsAutomatic(vehicle))
-                end
+            if not vehicleShouldHaveFlag(vehicle) then
                 removeManualFlag(vehicle)
                 return
             end
-            if not hasFlag(vehicle, originalFlag) then -- car should be an automatic and does not have a swapped gearbox
+            if not hasFlag(vehicle, originalFlag) and not exports['cw-tuning']:vehicleIsManual(vehicle) then -- car should be an automatic and does not have a swapped gearbox
                 if useDebug then print("car should be an automatic and does not have a swapped gearbox") end
                 removeManualFlag(vehicle)
                 return
@@ -217,13 +229,18 @@ local function vehicleHasManualGearBox(vehicle)
             if exports['cw-tuning']:vehicleIsAutomatic(vehicle) then -- car should be an automatic
                 return
             end 
-            if not exports['cw-tuning']:vehicleIsManual(vehicle) and hasFlag(vehicle, originalFlag) then -- doesnt have manual gearbox
-                if useDebug then print("car should be a manual and does not have a swapped gearbox") end
+            if vehicleShouldHaveFlag(vehicle) then
+                if useDebug then print("car should be a manual but does not have the flag") end
                 addManualFlag(vehicle)
-                return
             end
-            if not hasFlag(vehicle, originalFlag) then -- car shouln't be an automatic and does not have a swapped gearbox
-                removeManualFlag(vehicle)
+            if useDebug then print('Verifying original flag:') end
+            if not hasFlag(vehicle, originalFlag) and not exports['cw-tuning']:vehicleIsManual(vehicle) then -- car should be an automatic and does not have a swap
+                if useDebug then print('Verifying current flag:') end
+                if hasFlag(vehicle, adv_flags) then
+                    if useDebug then print("car should NOT be a manual by default and does not have a swapped gearbox, but currently has flag") end
+                    removeManualFlag(vehicle)
+                    return
+                end
                 return
             end
 
@@ -268,14 +285,20 @@ local function setNoGear(veh)
     Citizen.InvokeNative(setGear, veh, 0)
 end
 
-local function SetVehicleCurrentGear(veh, gear, clutch, currentGear, gearingUp)
+local function SetVehicleCurrentGear(veh, gear, clutch, currentGear)
     if GetEntitySpeedVector(veh, true).y < 0 then 
         return
     end
-    if useDebug then notify('next gear: '.. nextGear) end
+    if useDebug then 
+        notify('next gear: '.. nextGear)
+        print('veh', veh)
+        print('gear', gear)
+        print('clutch', clutch)
+        print('currentGear', currentGear)
+    end
     if isGearing then 
         if useDebug then print('^3Is gearing. skipping') end
-        SetTimeout(Config.ClutchTime/clutch, function () -- should be 900/clutch but this lets manual gearing be a tad faster
+        SetTimeout(Config.ClutchTime/1.0, function () -- should be 900/clutch but this lets manual gearing be a tad faster
             isGearing = false
         end)
         return 
@@ -304,9 +327,10 @@ end, false)
 local function shiftUp()
     local Player = PlayerPedId()
     local vehicle = GetVehiclePedIsUsing(Player)
+    local adv_flags = GetVehicleHandlingInt(vehicle, 'CCarHandlingData', 'strAdvancedFlags')
     if vehicle == 0 then return end
     if not isDriver(vehicle) then if useDebug then print('^1Not driver') end return end
-    if not hasFlag(vehicle) then if useDebug then print('^No flag') end return end
+    if not hasFlag(vehicle, adv_flags) then if useDebug then print('^2No flag') end return end
     local currentGear = GetVehicleCurrentGear(vehicle)
 
     if useDebug then print('Before: CurrentGear:', currentGear, 'TopGear:', topGear, 'nextGear', nextGear) end
@@ -321,15 +345,16 @@ local function shiftUp()
     if useDebug then print('After: CurrentGear:', currentGear, 'TopGear:', topGear, 'nextGear', nextGear) end
     if nextGear > topGear then nextGear = topGear end
 
-    SetVehicleCurrentGear( vehicle, nextGear, clutchUp, currentGear, true)
+    SetVehicleCurrentGear( vehicle, nextGear, clutchUp, currentGear)
     ModifyVehicleTopSpeed(vehicle,1)
 end
 
 local function shiftDown()
     local Player = PlayerPedId()
     local vehicle = GetVehiclePedIsUsing(Player)
+    local adv_flags = GetVehicleHandlingInt(vehicle, 'CCarHandlingData', 'strAdvancedFlags')
     if not isDriver(vehicle) then return end
-    if not hasFlag(vehicle) then return end
+    if not hasFlag(vehicle, adv_flags) then return end
     local currentGear = GetVehicleCurrentGear(vehicle)
 
     if currentGear == lowestGear then
@@ -339,7 +364,7 @@ local function shiftDown()
         local newNextGear = currentGear-1
         if newNextGear > lowestGear then nextGear = newNextGear end
     end
-    SetVehicleCurrentGear( vehicle,  nextGear , clutchDown, currentGear, false)
+    SetVehicleCurrentGear( vehicle,  nextGear , clutchDown, currentGear)
     ModifyVehicleTopSpeed(vehicle,1)
 end
 
