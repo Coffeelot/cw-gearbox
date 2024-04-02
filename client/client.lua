@@ -209,7 +209,8 @@ local function vehicleHasManualGearBox(vehicle)
     end
     if hasFlag(vehicle, adv_flags) then -- if car is a manual
         if Config.CwTuning then
-            if not vehicleShouldHaveFlag(vehicle) then
+            if not vehicleShouldHaveFlag(vehicle) and not hasFlag(vehicle, originalFlag) then
+                if useDebug then print("car should be an automatic but is not") end
                 removeManualFlag(vehicle)
                 return
             end
