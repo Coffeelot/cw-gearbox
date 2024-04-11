@@ -49,23 +49,23 @@ local function notify(text, type)
     end
 end
 
-local function playAnimation(rhd)
-    if rhd then
-        RequestAnimDict(RanimationDict)
-        while not HasAnimDictLoaded(RanimationDict) do
-            Wait(0)
-        end
-        TaskPlayAnim(PlayerPedId(), RanimationDict, RanimationName, 8.0, 1.0, 1000, 48, 0, 0, 0, 0)
-    
-        StopAnimTask(PlayerPedId(), RanimationDict, RanimationName, 1.0)
-    else
-        RequestAnimDict(LanimationDict)
-        while not HasAnimDictLoaded(LanimationDict) do
-            Wait(0)
-        end
-        TaskPlayAnim(PlayerPedId(), LanimationDict, LanimationName, 8.0, 1.0, 1000, 48, 0, 0, 0, 0)
+local function playAnimation(animation, animdict)
+    RequestAnimDict(animdict)
+    local retrys = 0
+    while not HasAnimDictLoaded(animdict) do
+        if useDebug then print('Loading animation dict for gearbox', animdict) end
+        retrys = retrys + 1
+        if retrys > 10 then if useDebug then print('Breaking early') end break end
+        Wait(0)
+    end
+    if HasAnimDictLoaded(animdict) then
+        if useDebug then print('^2Animation loaded successfully') end
+        TaskPlayAnim(PlayerPedId(), animdict, animation, 8.0, 1.0, 500, 48, 0, 0, 0, 0)
+        Wait(100)
+        StopAnimTask(PlayerPedId(), animdict, animation, 1.0)
 
-        StopAnimTask(PlayerPedId(), LanimationDict, LanimationName, 1.0)
+    else
+        if useDebug then print('^1Could not load animation') end
     end
 end
 
@@ -73,9 +73,14 @@ local function handleAnimation(vehicle)
     local rhd = hashedRhd[GetEntityModel(vehicle)]
     local class = GetVehicleClass(vehicle)
     if class == 8 or class == 21 or class == 16 or class == 15 or class == 14 or class == 13 then
+        if useDebug then print('Vehicle does not have gearing animation') end
         return
     end
-    playAnimation(rhd)
+    if rhd then
+        playAnimation(RanimationName, RanimationDict)
+    else
+        playAnimation(LanimationName, LanimationDict)
+    end
 end
 
 local OR, XOR, AND = 1, 3, 4
@@ -264,7 +269,6 @@ AddEventHandler('gameEventTriggered', function (name, args)
         -- if not isDriver(vehicle) then return end -- check for if driverseat
         isGearing = false
         nextGear = 2
-        lowestGear = 0
         topGear = 5
         clutchUp = 1.0
         clutchDown = 1.0
@@ -288,6 +292,7 @@ local function SetVehicleCurrentGear(veh, gear, clutch, currentGear)
     end
     if useDebug then 
         notify('next gear: '.. nextGear)
+        print('^5========== NEW GEAR ==========')
         print('veh', veh)
         print('gear', gear)
         print('clutch', clutch)
@@ -296,18 +301,19 @@ local function SetVehicleCurrentGear(veh, gear, clutch, currentGear)
     if isGearing then 
         if useDebug then print('^3Is gearing. skipping') end
         SetTimeout(300, function () -- should be 900/clutch but this lets manual gearing be a tad faster
+            if useDebug then print('Resetting clutch') end
             isGearing = false
         end)
         return 
     else
         setNoGear(veh)
         isGearing = true
+        SetTimeout(Config.ClutchTime/clutch, function () -- should be 900/clutch but this lets manual gearing be a tad faster
+            isGearing = false
+            setNextGear(veh)
+        end)
     end
     handleAnimation(veh)
-    SetTimeout(Config.ClutchTime/clutch, function () -- should be 900/clutch but this lets manual gearing be a tad faster
-        isGearing = false
-        setNextGear(veh)
-    end)
 end
 
 RegisterCommand("resetGears", function()
@@ -318,7 +324,7 @@ RegisterCommand("resetGears", function()
     end
     SetTimeout(5000, function () -- should be 900/clutch but this lets manual gearing be a tad faster
         isGearing = false
-        nextGear = 1
+        nextGear = 2
     end)
 end, false)
 
@@ -336,8 +342,10 @@ local function shiftUp()
     
     if currentGear == lowestGear then
         nextGear = nextGear+1
+        if useDebug then print('Current gear is lowest gear. Next gear will be', nextGear) end
     else
         nextGear = GetVehicleNextGear(vehicle)+1
+        if useDebug then print('Current was not lowest gear. Next gear will be', nextGear) end
     end
 
     if useDebug then print('After: CurrentGear:', currentGear, 'TopGear:', topGear, 'nextGear', nextGear) end
