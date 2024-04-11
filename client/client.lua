@@ -51,24 +51,20 @@ end
 
 local function playAnimation(rhd)
     if rhd then
-        if useDebug then print('RHD animation') end
         RequestAnimDict(RanimationDict)
         while not HasAnimDictLoaded(RanimationDict) do
             Wait(0)
         end
-        TaskPlayAnim(PlayerPedId(), RanimationDict, RanimationName, 8.0, 1.0, 1000, 16, 0, 0, 0, 0)
+        TaskPlayAnim(PlayerPedId(), RanimationDict, RanimationName, 8.0, 1.0, 1000, 48, 0, 0, 0, 0)
     
-        Wait(1000)
         StopAnimTask(PlayerPedId(), RanimationDict, RanimationName, 1.0)
     else
-        if useDebug then print('LHD animation') end
         RequestAnimDict(LanimationDict)
         while not HasAnimDictLoaded(LanimationDict) do
             Wait(0)
         end
-        TaskPlayAnim(PlayerPedId(), LanimationDict, LanimationName, 8.0, 1.0, 1000, 16, 0, 0, 0, 0)
+        TaskPlayAnim(PlayerPedId(), LanimationDict, LanimationName, 8.0, 1.0, 1000, 48, 0, 0, 0, 0)
 
-        Wait()
         StopAnimTask(PlayerPedId(), LanimationDict, LanimationName, 1.0)
     end
 end
@@ -267,7 +263,7 @@ AddEventHandler('gameEventTriggered', function (name, args)
         end
         -- if not isDriver(vehicle) then return end -- check for if driverseat
         isGearing = false
-        nextGear = 1
+        nextGear = 2
         lowestGear = 0
         topGear = 5
         clutchUp = 1.0
@@ -299,13 +295,14 @@ local function SetVehicleCurrentGear(veh, gear, clutch, currentGear)
     end
     if isGearing then 
         if useDebug then print('^3Is gearing. skipping') end
-        SetTimeout(Config.ClutchTime/1.0, function () -- should be 900/clutch but this lets manual gearing be a tad faster
+        SetTimeout(300, function () -- should be 900/clutch but this lets manual gearing be a tad faster
             isGearing = false
         end)
         return 
+    else
+        setNoGear(veh)
+        isGearing = true
     end
-    setNoGear(veh)
-    isGearing = true
     handleAnimation(veh)
     SetTimeout(Config.ClutchTime/clutch, function () -- should be 900/clutch but this lets manual gearing be a tad faster
         isGearing = false
