@@ -63,9 +63,9 @@ local function playAnimation(animation, animdict)
         TaskPlayAnim(PlayerPedId(), animdict, animation, 8.0, 1.0, 500, 48, 0, 0, 0, 0)
         Wait(100)
         StopAnimTask(PlayerPedId(), animdict, animation, 1.0)
-
+        RemoveAnimDict(animdict)
     else
-        if useDebug then print('^1Could not load animation') end
+        if useDebug then print('^1Could not load animation') notify('Animation broke', 'error') end
     end
 end
 
@@ -316,17 +316,17 @@ local function SetVehicleCurrentGear(veh, gear, clutch, currentGear)
     handleAnimation(veh)
 end
 
-RegisterCommand("resetGears", function()
-    notify('Resetting gearing in 5 sec')
-    if useDebug then 
-        print('Was gearing:', isGearing)
-        print('next gear:', nextGear)
-    end
-    SetTimeout(5000, function () -- should be 900/clutch but this lets manual gearing be a tad faster
-        isGearing = false
-        nextGear = 2
-    end)
-end, false)
+-- RegisterCommand("resetGears", function()
+--     notify('Resetting gearing in 2 sec')
+--     if useDebug then 
+--         print('Was gearing:', isGearing)
+--         print('next gear:', nextGear)
+--     end
+--     SetTimeout(2000, function () -- should be 900/clutch but this lets manual gearing be a tad faster
+--         isGearing = false
+--         nextGear = 2
+--     end)
+-- end, false)
 
 local function shiftUp()
     local Player = PlayerPedId()
