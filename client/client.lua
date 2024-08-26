@@ -49,23 +49,53 @@ local function notify(text, type)
     end
 end
 
-local function playAnimation(animation, animdict)
-    RequestAnimDict(animdict)
+local loadedAnimDicts = {}
+
+
+local function animDictIsLoaded(animDict)
+    if loadedAnimDicts[animDict] then
+        if useDebug then print('^6Animation was already loaded') end
+        return true
+    end
+
+    RequestAnimDict(animDict)
+    if useDebug then notify('Loading animation Fresh', 'success') end
     local retrys = 0
-    while not HasAnimDictLoaded(animdict) do
-        if useDebug then print('Loading animation dict for gearbox', animdict) end
+    while not HasAnimDictLoaded(animDict) do
+        if useDebug then print('Loading animation dict for gearbox', animDict) end
         retrys = retrys + 1
-        if retrys > 10 then if useDebug then print('Breaking early') end break end
+        if retrys > 10 then if useDebug then print('Breaking early') notify('Failed to load dictionary', 'error') end return false end
         Wait(0)
     end
-    if HasAnimDictLoaded(animdict) then
+
+    loadedAnimDicts[animDict] = true
+    return true
+end
+
+local function clearAnimCache()
+    for dict in pairs(loadedAnimDicts) do
+        RemoveAnimDict(dict)
+    end
+    loadedAnimDicts = {}
+    if useDebug then print('^3Cleared animation cache') notify('Clearing animation cache') end
+end
+
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(300000)  -- 5 minutes
+        clearAnimCache()
+    end
+end)
+
+local function playAnimation(animation, animDict)
+    
+    if animDictIsLoaded(animDict) then
         if useDebug then print('^2Animation loaded successfully') end
-        TaskPlayAnim(PlayerPedId(), animdict, animation, 8.0, 1.0, 500, 48, 0, 0, 0, 0)
+        TaskPlayAnim(PlayerPedId(), animDict, animation, 8.0, 1.0, 500, 48, 0, 0, 0, 0)
         Wait(100)
-        StopAnimTask(PlayerPedId(), animdict, animation, 1.0)
-        RemoveAnimDict(animdict)
+        StopAnimTask(PlayerPedId(), animDict, animation, 1.0)
     else
-        if useDebug then print('^1Could not load animation') notify('Animation broke', 'error') end
+        if useDebug then print('^1Could not load animation') notify('Animation broke') end
     end
 end
 
@@ -316,18 +346,6 @@ local function SetVehicleCurrentGear(veh, gear, clutch, currentGear)
     handleAnimation(veh)
 end
 
--- RegisterCommand("resetGears", function()
---     notify('Resetting gearing in 2 sec')
---     if useDebug then 
---         print('Was gearing:', isGearing)
---         print('next gear:', nextGear)
---     end
---     SetTimeout(2000, function () -- should be 900/clutch but this lets manual gearing be a tad faster
---         isGearing = false
---         nextGear = 2
---     end)
--- end, false)
-
 local function shiftUp()
     local Player = PlayerPedId()
     local vehicle = GetVehiclePedIsUsing(Player)
@@ -386,7 +404,7 @@ if Config.OxLib then
             defaultKey = Config.Keys.gearUp,
             onPressed = function(self)
                 shiftUp()
-            end
+            end,
         })
         
         lib.addKeybind({
