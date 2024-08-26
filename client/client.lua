@@ -82,7 +82,7 @@ end
 
 Citizen.CreateThread(function()
     while true do
-        Citizen.Wait(300000)  -- 5 minutes
+        Citizen.Wait(1*60*1000)  -- 5 minutes
         clearAnimCache()
     end
 end)
