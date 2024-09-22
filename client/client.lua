@@ -258,7 +258,9 @@ local function vehicleHasManualGearBox(vehicle)
         topGear = GetVehicleHighGear(vehicle)
         clutchDown = GetVehicleHandlingFloat(vehicle, 'CHandlingData', 'fClutchChangeRateScaleDownShift')
         clutchUp = GetVehicleHandlingFloat(vehicle, 'CHandlingData', 'fClutchChangeRateScaleUpShift')
-        notify('This vehicle is a manual')
+        if Config.NotifyManual then
+            notify(Config.ManualNotificationText)
+        end
         createThread()
     else -- if car ISNT a manual
         if Config.CwTuning then
@@ -284,7 +286,9 @@ local function vehicleHasManualGearBox(vehicle)
             topGear = GetVehicleHighGear(vehicle)
             clutchDown = GetVehicleHandlingFloat(vehicle, 'CHandlingData', 'fClutchChangeRateScaleDownShift')
             clutchUp = GetVehicleHandlingFloat(vehicle, 'CHandlingData', 'fClutchChangeRateScaleUpShift')
-            notify('This vehicle is a manual')
+            if Config.NotifyManual then
+                notify(Config.ManualNotificationText)
+            end
             createThread()
         elseif Config.UseOtherCheck then
             print('^1If you can see this print then someone enabled UseOtherCheck for manual gears but didnt add any code') -- REMOVE THIS IF YOU IMPLEMENT SOMETHING HERE
@@ -293,8 +297,14 @@ local function vehicleHasManualGearBox(vehicle)
     end
 end exports('vehicleHasManualGearBox', vehicleHasManualGearBox)
 
+local isEnteringVehicle = false
+
 AddEventHandler('gameEventTriggered', function (name, args)
-    if name == 'CEventNetworkPlayerEnteredVehicle' then
+    if name == 'CEventNetworkPlayerEnteredVehicle' and not isEnteringVehicle then
+        isEnteringVehicle = true
+        SetTimeout(2000, function()
+            isEnteringVehicle = false
+        end)
         local Player = PlayerPedId()
         local vehicle = GetVehiclePedIsUsing(Player)
         if not isDriver(vehicle) then
