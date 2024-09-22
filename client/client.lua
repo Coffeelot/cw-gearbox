@@ -19,8 +19,8 @@ local clutchDown = 1.0
 local nextGear = 0
 local isGearing = false
 
-local manualFlag = 1024
-local lateGearFlag = 2710
+local MANUAL_FLAG = 1024
+local LATE_GEAR_FLAG = 2710
 
 local LanimationDict = "veh@driveby@first_person@passenger_rear_right_handed@smg" 
 local LanimationName = "outro_90r"
@@ -65,7 +65,7 @@ local function animDictIsLoaded(animDict)
         if useDebug then print('Loading animation dict for gearbox', animDict) end
         retrys = retrys + 1
         if retrys > 10 then if useDebug then print('Breaking early') notify('Failed to load dictionary', 'error') end return false end
-        Wait(0)
+        Wait(10)
     end
 
     loadedAnimDicts[animDict] = true
@@ -136,14 +136,14 @@ local function addManualFlagToFlag(flag)
     end
 
     -- Add flag 1024
-    flag = bitOper(flag, manualFlag, OR)
+    flag = bitOper(flag, MANUAL_FLAG, OR)
 
     return math.floor(flag)
 end
 
 local function addLateGearFlag(flag)
     -- Add flag lateGearFlag
-    flag = bitOper(flag, lateGearFlag, OR)
+    flag = bitOper(flag, LATE_GEAR_FLAG, OR)
 
     return math.floor(flag)
 end
@@ -161,7 +161,7 @@ local function removeManualFlagFromFlag(flag)
     end
 
     -- Add flag 1024
-    flag = bitOper(flag, manualFlag, XOR)
+    flag = bitOper(flag, MANUAL_FLAG, XOR)
 
     return math.floor(flag)
 end
@@ -171,8 +171,8 @@ local function vehicleHasFlag(vehicle, adv_flags)
     if adv_flags == 0 and useDebug then 
         print('^1This vehicle either has empty advancedflags or no advanced flag in its handling file')
     end
-    local flag_check_1024 = bitOper(adv_flags, manualFlag, AND)
-    local hasFlag = flag_check_1024 == manualFlag
+    local flag_check_1024 = bitOper(adv_flags, MANUAL_FLAG, AND)
+    local hasFlag = flag_check_1024 == MANUAL_FLAG
     if useDebug then print('Vehicle has flag:', adv_flags, hasFlag) end
     return hasFlag
 end
@@ -228,7 +228,8 @@ local function vehicleShouldHaveFlag(vehicle)
         if useDebug then print('Vehicle is an MANUAL as per cw tuning') end
         return true
     end
-    return false
+
+    return vehicleHasFlag(vehicle, originalFlag)
 end
 
 local function vehicleHasManualGearBox(vehicle)
@@ -241,9 +242,9 @@ local function vehicleHasManualGearBox(vehicle)
     if vehicleHasFlag(vehicle, adv_flags) then -- if car is a manual
         if Config.CwTuning then
             local shouldHaveFlag = vehicleShouldHaveFlag(vehicle)
-            local hasFlag = vehicleHasFlag(vehicle, originalFlag)
-            if useDebug then print('Should Have Flag', shouldHaveFlag, 'has flag', hasFlag) end
-            if not shouldHaveFlag and hasFlag then
+            local hasManualFlag = vehicleHasFlag(vehicle, MANUAL_FLAG)
+            if useDebug then print('Should Have Flag', shouldHaveFlag, 'has flag', hasManualFlag) end
+            if not shouldHaveFlag and hasManualFlag then
                 if useDebug then print("car should be an automatic but is not") end
                 removeManualFlag(vehicle)
                 return
