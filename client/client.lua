@@ -203,6 +203,7 @@ local function removeManualFlag(vehicle)
     local newFlag = removeManualFlagFromFlag(adv_flags)
     SetVehicleHandlingInt(vehicle, 'CCarHandlingData', 'strAdvancedFlags', newFlag)
     ModifyVehicleTopSpeed(vehicle, 1.0)
+    Entity(vehicle).state:set('isManual', false, true)
 end exports('removeManualFlag', removeManualFlag)
 
 local function addManualFlag(vehicle)
@@ -216,6 +217,7 @@ local function addManualFlag(vehicle)
     local newFlag = addManualFlagToFlag(adv_flags)
     SetVehicleHandlingInt(vehicle, 'CCarHandlingData', 'strAdvancedFlags', newFlag)
     ModifyVehicleTopSpeed(vehicle, 1.0)
+    Entity(vehicle).state:set('isManual', true, true)
 end exports('addManualFlag', addManualFlag)
 
 local function vehicleShouldHaveFlag(vehicle)
@@ -247,12 +249,12 @@ local function vehicleHasManualGearBox(vehicle)
             if not shouldHaveFlag and hasManualFlag then
                 if useDebug then print("car should be an automatic but is not") end
                 removeManualFlag(vehicle)
-                return
+                return false
             end
             if not vehicleHasFlag(vehicle, originalFlag) and not exports['cw-tuning']:vehicleIsManual(vehicle) then -- car should be an automatic and does not have a swapped gearbox
                 if useDebug then print("car should be an automatic and does not have a swapped gearbox") end
                 removeManualFlag(vehicle)
-                return
+                return false
             end
         end
         topGear = GetVehicleHighGear(vehicle)
@@ -262,10 +264,13 @@ local function vehicleHasManualGearBox(vehicle)
             notify(Config.ManualNotificationText)
         end
         createThread()
+        Entity(vehicle).state:set('isManual', true, true)
+        return true
     else -- if car ISNT a manual
         if Config.CwTuning then
             if exports['cw-tuning']:vehicleIsAutomatic(vehicle) then -- car should be an automatic
-                return
+                Entity(vehicle).state:set('isManual', false, true)
+                return false
             end 
             if vehicleShouldHaveFlag(vehicle) then
                 if useDebug then print("car should be a manual but does not have the flag") end
@@ -277,9 +282,10 @@ local function vehicleHasManualGearBox(vehicle)
                 if vehicleHasFlag(vehicle, adv_flags) then
                     if useDebug then print("car should NOT be a manual by default and does not have a swapped gearbox, but currently has flag") end
                     removeManualFlag(vehicle)
-                    return
+                    return false
                 end
-                return
+                Entity(vehicle).state:set('isManual', false, true)
+                return false
             end
 
             addManualFlag(vehicle)
@@ -290,6 +296,7 @@ local function vehicleHasManualGearBox(vehicle)
                 notify(Config.ManualNotificationText)
             end
             createThread()
+            return true
         elseif Config.UseOtherCheck then
             print('^1If you can see this print then someone enabled UseOtherCheck for manual gears but didnt add any code') -- REMOVE THIS IF YOU IMPLEMENT SOMETHING HERE
             -- ADD YOUR CHECK HERE

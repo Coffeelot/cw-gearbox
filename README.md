@@ -21,6 +21,20 @@ Default buttons are R and Q, so you might need to rebind some stuff or change th
 Check the Config for `UseOtherCheck` if you want to implement another script for swappable transmissions
 > As of the release of this. CW-Tuning also recieved an update (see our Discord for patch notes)
 
+# Want to check if a vehicle is manual from another script?
+When doing the manual check, cw-gearbox will apply a flag in the vehicles statebag. You can access it like this:
+```lua
+Entity(vehicleEntity).state.isManual
+```
+Example:
+```lua
+local Player = PlayerPedId()
+local vehicle = GetVehiclePedIsUsing(Player)
+
+print('is manual', Entity(vehicle).state.isManual)
+```
+> Note: will return nil if the script has not set it yet, obviously
+
 # Showcase
 
 [Youtube Link](https://www.youtube.com/watch?v=UTnGFwetMfo) 🎬
