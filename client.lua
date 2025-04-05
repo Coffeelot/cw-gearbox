@@ -314,6 +314,7 @@ AddEventHandler('gameEventTriggered', function (name, args)
         end)
         local Player = PlayerPedId()
         local vehicle = GetVehiclePedIsUsing(Player)
+        vehicleHasManualGearBox(vehicle)
         if not isDriver(vehicle) then
             return
         end
@@ -323,7 +324,6 @@ AddEventHandler('gameEventTriggered', function (name, args)
         topGear = 5
         clutchUp = 1.0
         clutchDown = 1.0
-        vehicleHasManualGearBox(vehicle)
     end
 end)
 
@@ -331,8 +331,14 @@ end)
 local setGear = GetHashKey('SET_VEHICLE_CURRENT_GEAR') & 0xFFFFFFFF
 local function setNextGear(veh)
     Citizen.InvokeNative(setGear, veh, nextGear)
-    Entity(veh).state:set('gearchange', nextGear, true)
+    if Config.UseServerSideStateSet then
+        TriggerServerEvent('cw-gearbox:server:setGear', NetworkGetNetworkIdFromEntity(veh), nextGear)
+        return
+    end
+
+    Entity(veh).state:set('gearchange', nextGear, false)
 end
+
 local function setNoGear(veh)
     Citizen.InvokeNative(setGear, veh, 0)
 end
