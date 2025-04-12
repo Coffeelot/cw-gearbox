@@ -5,6 +5,8 @@ if not Config.OxLib then
     QBCore = exports['qb-core']:GetCoreObject()
 end
 
+local SETGEARNATIVE = GetHashKey('SET_VEHICLE_CURRENT_GEAR') & 0xFFFFFFFF
+
 if GetGameBuildNumber() < 3095 then
     print('^1THIS SERVER GAME BUILD IS TO LOW TO USE CW GEARBOX!')
     print("Version:", GetGameBuildNumber())
@@ -26,6 +28,7 @@ local LanimationDict = "veh@driveby@first_person@passenger_rear_right_handed@smg
 local LanimationName = "outro_90r"
 local RanimationDict = "veh@driveby@first_person@passenger_rear_left_handed@smg" 
 local RanimationName = "outro_90l"
+local isEnteringVehicle = false
 
 local hashedRhd = {}
 
@@ -177,7 +180,7 @@ local function vehicleHasFlag(vehicle, adv_flags)
     return hasFlag
 end
 
-local function createThread()
+local function createControlThread()
     Citizen.CreateThread(function()
         while true do
             local Player = PlayerPedId()
@@ -260,10 +263,10 @@ local function vehicleHasManualGearBox(vehicle)
         topGear = GetVehicleHighGear(vehicle)
         clutchDown = GetVehicleHandlingFloat(vehicle, 'CHandlingData', 'fClutchChangeRateScaleDownShift')
         clutchUp = GetVehicleHandlingFloat(vehicle, 'CHandlingData', 'fClutchChangeRateScaleUpShift')
-        if Config.NotifyManual then
+        if isDriver(vehicle) and Config.NotifyManual then
             notify(Config.ManualNotificationText)
         end
-        createThread()
+        createControlThread()
         Entity(vehicle).state:set('isManual', true, true)
         return true
     else -- if car ISNT a manual
@@ -292,10 +295,10 @@ local function vehicleHasManualGearBox(vehicle)
             topGear = GetVehicleHighGear(vehicle)
             clutchDown = GetVehicleHandlingFloat(vehicle, 'CHandlingData', 'fClutchChangeRateScaleDownShift')
             clutchUp = GetVehicleHandlingFloat(vehicle, 'CHandlingData', 'fClutchChangeRateScaleUpShift')
-            if Config.NotifyManual then
+            if isDriver(vehicle) and Config.NotifyManual then
                 notify(Config.ManualNotificationText)
             end
-            createThread()
+            createControlThread()
             return true
         elseif Config.UseOtherCheck then
             print('^1If you can see this print then someone enabled UseOtherCheck for manual gears but didnt add any code') -- REMOVE THIS IF YOU IMPLEMENT SOMETHING HERE
@@ -304,33 +307,8 @@ local function vehicleHasManualGearBox(vehicle)
     end
 end exports('vehicleHasManualGearBox', vehicleHasManualGearBox)
 
-local isEnteringVehicle = false
-
-AddEventHandler('gameEventTriggered', function (name, args)
-    if name == 'CEventNetworkPlayerEnteredVehicle' and not isEnteringVehicle then
-        isEnteringVehicle = true
-        SetTimeout(2000, function()
-            isEnteringVehicle = false
-        end)
-        local Player = PlayerPedId()
-        local vehicle = GetVehiclePedIsUsing(Player)
-        vehicleHasManualGearBox(vehicle)
-        if not isDriver(vehicle) then
-            return
-        end
-        -- if not isDriver(vehicle) then return end -- check for if driverseat
-        isGearing = false
-        nextGear = 2
-        topGear = 5
-        clutchUp = 1.0
-        clutchDown = 1.0
-    end
-end)
-
-
-local setGear = GetHashKey('SET_VEHICLE_CURRENT_GEAR') & 0xFFFFFFFF
 local function setNextGear(veh)
-    Citizen.InvokeNative(setGear, veh, nextGear)
+    Citizen.InvokeNative(SETGEARNATIVE, veh, nextGear)
     if Config.UseServerSideStateSet then
         TriggerServerEvent('cw-gearbox:server:setGear', NetworkGetNetworkIdFromEntity(veh), nextGear)
         return
@@ -340,10 +318,10 @@ local function setNextGear(veh)
 end
 
 local function setNoGear(veh)
-    Citizen.InvokeNative(setGear, veh, 0)
+    Citizen.InvokeNative(SETGEARNATIVE, veh, 0)
 end
 
-local function SetVehicleCurrentGear(veh, gear, clutch, currentGear)
+local function setVehicleCurrentGear(veh, gear, clutch, currentGear)
     if GetEntitySpeedVector(veh, true).y < 0 then 
         return
     end
@@ -396,7 +374,7 @@ local function shiftUp()
     if useDebug then print('After: CurrentGear:', currentGear, 'TopGear:', topGear, 'nextGear', nextGear) end
     if nextGear > topGear then nextGear = topGear end
 
-    SetVehicleCurrentGear( vehicle, nextGear, clutchUp, currentGear)
+    setVehicleCurrentGear( vehicle, nextGear, clutchUp, currentGear)
     ModifyVehicleTopSpeed(vehicle,1)
 end
 
@@ -415,7 +393,7 @@ local function shiftDown()
         local newNextGear = currentGear-1
         if newNextGear > lowestGear then nextGear = newNextGear end
     end
-    SetVehicleCurrentGear( vehicle,  nextGear , clutchDown, currentGear)
+    setVehicleCurrentGear( vehicle,  nextGear , clutchDown, currentGear)
     ModifyVehicleTopSpeed(vehicle,1)
 end
 
@@ -455,15 +433,104 @@ else
     RegisterKeyMapping("clickShiftDown", "Shift Up", "keyboard", Config.Keys.gearDown)
 end
 
+local function createPassengerThread()
+    if useDebug then print('Initiating Passenger thread') end
+    local ped = PlayerPedId()
+    CreateThread(function()
+        while IsPedInAnyVehicle(ped, false) do
+            local vehicle = GetVehiclePedIsIn(ped, false)
+
+            if DoesEntityExist(vehicle) then
+                if not isDriver(vehicle) then
+                    if Entity(vehicle).state.gearchange ~= GetVehicleCurrentGear(vehicle) then
+                        if useDebug then
+                            print('^1Current gear:', GetVehicleCurrentGear(vehicle))
+                            print('^2Should be', Entity(vehicle).state.gearchange)
+                        end
+                        nextGear =  GetVehicleCurrentGear(vehicle)
+                        setNextGear(vehicle)
+                    end
+                end
+            end
+            Wait(Config.GearCheckSleep)
+        end
+        if useDebug then print('Not in a vehicle. Breaking Thread.') end
+    end)
+end
+
+local function createDriverThread()
+    if useDebug then print('Initiating Driver thread') end
+    local ped = PlayerPedId()
+    CreateThread(function()
+        while IsPedInAnyVehicle(ped, false) do
+            local vehicle = GetVehiclePedIsIn(ped, false)
+
+            if DoesEntityExist(vehicle) then
+                if isDriver(vehicle) then
+                    if Entity(vehicle).state.gearchange ~= GetVehicleCurrentGear(vehicle) then
+                        if useDebug then
+                            print('^1Current gear:', GetVehicleCurrentGear(vehicle))
+                            print('^2Should be', Entity(vehicle).state.gearchange)
+                        end
+                        
+                    end
+                end
+            end
+            Wait(Config.GearCheckSleep)
+        end
+        if useDebug then print('Not in a vehicle. Breaking Thread.') end
+    end)
+end
+
+AddEventHandler('gameEventTriggered', function (name, args)
+    if name == 'CEventNetworkPlayerEnteredVehicle' and not isEnteringVehicle then
+        local enteredPlayerId = args[1]
+        local localPlayerId = PlayerId()
+        if enteredPlayerId ~= localPlayerId then
+            if useDebug then print('Another player entered vehicle. Skipping') end
+            return
+        end
+        isEnteringVehicle = true
+        SetTimeout(2000, function()
+            isEnteringVehicle = false
+        end)
+        local Player = PlayerPedId()
+        local vehicle = GetVehiclePedIsUsing(Player)
+        if not vehicleHasManualGearBox(vehicle) then 
+            if useDebug then print('Vehicle did not have manual gearbox. Skipping') end
+            return
+        end
+        if not isDriver(vehicle) then
+            createPassengerThread()
+            return
+        end
+        -- if not isDriver(vehicle) then return end -- check for if driverseat
+        isGearing = false
+        nextGear = 2
+        topGear = 5
+        clutchUp = 1.0
+        clutchDown = 1.0
+        createDriverThread()
+    end
+end)
+
 AddStateBagChangeHandler("gearchange", nil, function(bagName, key, value) 
     local veh = GetEntityFromStateBagName(bagName)
-    if isDriver(veh) then return end
-    if useDebug then print('gear change for veh', veh, value) end
+    if useDebug then print('State Bag Called: gear change for veh', veh, value) end
     if veh == 0 then return end
-    while not HasCollisionLoadedAroundEntity(veh) do
-        if not DoesEntityExist(veh) then return end
-        Wait(250)
+    if not isDriver(veh) then
+        local attempts = 0
+        while not HasCollisionLoadedAroundEntity(veh) and attempts < 20 do
+            if not DoesEntityExist(veh) then return end
+            attempts = attempts + 1
+            Wait(100)
+        end
+        if attempts == 20 then 
+            if useDebug then print('^1SCould not find entity!^0') end
+        end
+            
+        Citizen.InvokeNative(SETGEARNATIVE, veh, value)
+    else
+        if useDebug then print('^3Skipping change due to being driver^0') end
     end
-    local Player = PlayerPedId()
-    Citizen.InvokeNative(setGear, veh, value)
 end)
