@@ -52,6 +52,24 @@ local function notify(text, type)
     end
 end
 
+local function IsVehicleRightHandDrive(vehicle)
+    assert(vehicle and vehicle ~= 0, "Invalid vehicle")
+    local seatBoneIndex = GetEntityBoneIndexByName(vehicle, "seat_dside_f")
+    if seatBoneIndex == -1 then return false end
+
+    local seatPos = GetWorldPositionOfEntityBone(vehicle, seatBoneIndex)
+
+
+    local vehicleCenter = GetEntityCoords(vehicle)
+    local heading = GetEntityHeading(vehicle) * math.pi / 180
+
+    local dx = seatPos.x - vehicleCenter.x
+    local dy = seatPos.y - vehicleCenter.y
+
+    local localX =  dx * math.cos(-heading) - dy * math.sin(-heading)
+    return localX > 0
+end
+
 local loadedAnimDicts = {}
 
 
