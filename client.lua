@@ -1,4 +1,5 @@
 local useDebug = Config.Debug
+local autoIdentifyRhd = Config.AutoIdentifyRhd
 
 if not Config.OxLib then
     if useDebug then print('^3 OxLib is not enabled for CW gearbox. Creating Core Object') end
@@ -11,7 +12,7 @@ if GetGameBuildNumber() < 3095 then
     print('^1THIS SERVER GAME BUILD IS TO LOW TO USE CW GEARBOX!')
     print("Version:", GetGameBuildNumber())
     print("Least required version:", 3095)
-end 
+end
 
 local lowestGear = 0
 local topGear = 5
@@ -24,9 +25,9 @@ local isGearing = false
 local MANUAL_FLAG = 1024
 local LATE_GEAR_FLAG = 2710
 
-local LanimationDict = "veh@driveby@first_person@passenger_rear_right_handed@smg" 
+local LanimationDict = "veh@driveby@first_person@passenger_rear_right_handed@smg"
 local LanimationName = "outro_90r"
-local RanimationDict = "veh@driveby@first_person@passenger_rear_left_handed@smg" 
+local RanimationDict = "veh@driveby@first_person@passenger_rear_left_handed@smg"
 local RanimationName = "outro_90l"
 local isEnteringVehicle = false
 
@@ -47,9 +48,27 @@ local function notify(text, type)
             title = text,
             type = type,
         })
-    else 
+    else
         QBCore.Functions.Notify(text, type)
     end
+end
+
+local function IsVehicleRightHandDrive(vehicle)
+    assert(vehicle and vehicle ~= 0, "Invalid vehicle")
+    local seatBoneIndex = GetEntityBoneIndexByName(vehicle, "seat_dside_f")
+    if seatBoneIndex == -1 then return false end
+
+    local seatPos = GetWorldPositionOfEntityBone(vehicle, seatBoneIndex)
+
+
+    local vehicleCenter = GetEntityCoords(vehicle)
+    local heading = GetEntityHeading(vehicle) * math.pi / 180
+
+    local dx = seatPos.x - vehicleCenter.x
+    local dy = seatPos.y - vehicleCenter.y
+
+    local localX =  dx * math.cos(-heading) - dy * math.sin(-heading)
+    return localX > 0
 end
 
 local loadedAnimDicts = {}
@@ -91,7 +110,7 @@ Citizen.CreateThread(function()
 end)
 
 local function playAnimation(animation, animDict)
-    
+
     if animDictIsLoaded(animDict) then
         if useDebug then print('^2Animation loaded successfully') end
         TaskPlayAnim(PlayerPedId(), animDict, animation, 8.0, 1.0, 500, 48, 0, 0, 0, 0)
@@ -103,7 +122,7 @@ local function playAnimation(animation, animDict)
 end
 
 local function handleAnimation(vehicle)
-    local rhd = hashedRhd[GetEntityModel(vehicle)]
+    local rhd = hashedRhd[GetEntityModel(vehicle)] or (autoIdentifyRhd and IsVehicleRightHandDrive(vehicle))
     local class = GetVehicleClass(vehicle)
     if class == 8 or class == 21 or class == 16 or class == 15 or class == 14 or class == 13 then
         if useDebug then print('Vehicle does not have gearing animation') end
@@ -118,12 +137,12 @@ end
 
 local OR, XOR, AND = 1, 3, 4
 local function bitOper(flag, checkFor, oper)
-	local result, mask, sum = 0, 2 ^ 31
-	repeat
-		sum, flag, checkFor = flag + checkFor + mask, flag % mask, checkFor % mask
-		result, mask = result + mask * oper % (sum - flag - checkFor), mask / 2
-	until mask < 1
-	return result
+    local result, mask, sum = 0, 2 ^ 31
+    repeat
+        sum, flag, checkFor = flag + checkFor + mask, flag % mask, checkFor % mask
+        result, mask = result + mask * oper % (sum - flag - checkFor), mask / 2
+    until mask < 1
+    return result
 end
 
 local function addManualFlagToFlag(flag)
@@ -170,8 +189,8 @@ local function removeManualFlagFromFlag(flag)
 end
 
 local function vehicleHasFlag(vehicle, adv_flags)
-    if adv_flags == nil then adv_flags = GetVehicleHandlingInt(vehicle, 'CCarHandlingData', 'strAdvancedFlags') end 
-    if adv_flags == 0 and useDebug then 
+    if adv_flags == nil then adv_flags = GetVehicleHandlingInt(vehicle, 'CCarHandlingData', 'strAdvancedFlags') end
+    if adv_flags == 0 and useDebug then
         print('^1This vehicle either has empty advancedflags or no advanced flag in its handling file')
     end
     local flag_check_1024 = bitOper(adv_flags, MANUAL_FLAG, AND)
@@ -185,8 +204,8 @@ local function createControlThread()
         while true do
             local Player = PlayerPedId()
             local vehicle = GetVehiclePedIsUsing(Player)
-            if not vehicle or not isDriver(vehicle) then 
-                TerminateThisThread() 
+            if not vehicle or not isDriver(vehicle) then
+                TerminateThisThread()
                 break;
             end
             Wait(1) -- Disable gtas gear stuff
@@ -211,7 +230,7 @@ end exports('removeManualFlag', removeManualFlag)
 
 local function addManualFlag(vehicle)
     if useDebug then print('Adding manual flag') end
-    
+
     local adv_flags = GetVehicleHandlingInt(vehicle, 'CCarHandlingData', 'strAdvancedFlags')
     if not Entity(vehicle).state.originalFlag then
         if useDebug then print('Setting default flag') end
@@ -240,7 +259,7 @@ end
 local function vehicleHasManualGearBox(vehicle)
     local adv_flags = GetVehicleHandlingInt(vehicle, 'CCarHandlingData', 'strAdvancedFlags')
     local originalFlag = Entity(vehicle).state.originalFlag
-    if not originalFlag then 
+    if not originalFlag then
         if useDebug then print('Setting original flag to', adv_flags) end
         Entity(vehicle).state:set('originalFlag', adv_flags, true)
     end
@@ -274,7 +293,7 @@ local function vehicleHasManualGearBox(vehicle)
             if exports['cw-tuning']:vehicleIsAutomatic(vehicle) then -- car should be an automatic
                 Entity(vehicle).state:set('isManual', false, true)
                 return false
-            end 
+            end
             if vehicleShouldHaveFlag(vehicle) then
                 if useDebug then print("car should be a manual but does not have the flag") end
                 addManualFlag(vehicle)
@@ -322,10 +341,10 @@ local function setNoGear(veh)
 end
 
 local function setVehicleCurrentGear(veh, gear, clutch, currentGear)
-    if GetEntitySpeedVector(veh, true).y < 0 then 
+    if GetEntitySpeedVector(veh, true).y < 0 then
         return
     end
-    if useDebug then 
+    if useDebug then
         notify('next gear: '.. nextGear)
         print('^5========== NEW GEAR ==========')
         print('veh', veh)
@@ -333,13 +352,13 @@ local function setVehicleCurrentGear(veh, gear, clutch, currentGear)
         print('clutch', clutch)
         print('currentGear', currentGear)
     end
-    if isGearing then 
+    if isGearing then
         if useDebug then print('^3Is gearing. skipping') end
         SetTimeout(300, function () -- should be 900/clutch but this lets manual gearing be a tad faster
             if useDebug then print('Resetting clutch') end
             isGearing = false
         end)
-        return 
+        return
     else
         setNoGear(veh)
         isGearing = true
@@ -362,7 +381,7 @@ local function shiftUp()
 
     if useDebug then print('Before: CurrentGear:', currentGear, 'TopGear:', topGear, 'nextGear', nextGear) end
     if currentGear == topGear then return end
-    
+
     if currentGear == lowestGear then
         nextGear = nextGear+1
         if useDebug then print('Current gear is lowest gear. Next gear will be', nextGear) end
@@ -411,7 +430,7 @@ if Config.OxLib then
                 shiftUp()
             end,
         })
-        
+
         lib.addKeybind({
             name = 'shiftdown',
             description = 'Shift Down',
@@ -472,7 +491,7 @@ local function createDriverThread()
                             print('^1Current gear:', GetVehicleCurrentGear(vehicle))
                             print('^2Should be', Entity(vehicle).state.gearchange)
                         end
-                        
+
                     end
                 end
             end
@@ -496,7 +515,7 @@ AddEventHandler('gameEventTriggered', function (name, args)
         end)
         local Player = PlayerPedId()
         local vehicle = GetVehiclePedIsUsing(Player)
-        if not vehicleHasManualGearBox(vehicle) then 
+        if not vehicleHasManualGearBox(vehicle) then
             if useDebug then print('Vehicle did not have manual gearbox. Skipping') end
             return
         end
@@ -514,7 +533,7 @@ AddEventHandler('gameEventTriggered', function (name, args)
     end
 end)
 
-AddStateBagChangeHandler("gearchange", nil, function(bagName, key, value) 
+AddStateBagChangeHandler("gearchange", nil, function(bagName, key, value)
     local veh = GetEntityFromStateBagName(bagName)
     if useDebug then print('State Bag Called: gear change for veh', veh, value) end
     if veh == 0 then return end
@@ -525,10 +544,10 @@ AddStateBagChangeHandler("gearchange", nil, function(bagName, key, value)
             attempts = attempts + 1
             Wait(100)
         end
-        if attempts == 20 then 
+        if attempts == 20 then
             if useDebug then print('^1SCould not find entity!^0') end
         end
-            
+
         Citizen.InvokeNative(SETGEARNATIVE, veh, value)
     else
         if useDebug then print('^3Skipping change due to being driver^0') end
