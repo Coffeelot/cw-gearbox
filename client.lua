@@ -67,7 +67,7 @@ local function IsVehicleRightHandDrive(vehicle)
     local dx = seatPos.x - vehicleCenter.x
     local dy = seatPos.y - vehicleCenter.y
 
-    local localX =  dx * math.cos(-heading) - dy * math.sin(-heading)
+    local localX = dx * math.cos(-heading) - dy * math.sin(-heading)
     return localX > 0
 end
 
@@ -86,7 +86,13 @@ local function animDictIsLoaded(animDict)
     while not HasAnimDictLoaded(animDict) do
         if useDebug then print('Loading animation dict for gearbox', animDict) end
         retrys = retrys + 1
-        if retrys > 10 then if useDebug then print('Breaking early') notify('Failed to load dictionary', 'error') end return false end
+        if retrys > 10 then
+            if useDebug then
+                print('Breaking early')
+                notify('Failed to load dictionary', 'error')
+            end
+            return false
+        end
         Wait(10)
     end
 
@@ -99,25 +105,35 @@ local function clearAnimCache()
         RemoveAnimDict(dict)
     end
     loadedAnimDicts = {}
-    if useDebug then print('^3Cleared animation cache') notify('Clearing animation cache') end
+    if useDebug then
+        print('^3Cleared animation cache')
+        notify('Clearing animation cache')
+    end
 end
 
-Citizen.CreateThread(function()
+CreateThread(function()
+    if Config.OxLib then return end
     while true do
-        Citizen.Wait(1*60*1000)  -- 5 minutes
+        Wait(1 * 60 * 1000) -- 5 minutes
         clearAnimCache()
     end
 end)
 
 local function playAnimation(animation, animDict)
-
+    if Config.OxLib then
+        lib.playAnim(PlayerPedId(), animDict, animation, 8.0, 1.0, 500, 48)
+        return
+    end
     if animDictIsLoaded(animDict) then
         if useDebug then print('^2Animation loaded successfully') end
         TaskPlayAnim(PlayerPedId(), animDict, animation, 8.0, 1.0, 500, 48, 0, 0, 0, 0)
         Wait(100)
         StopAnimTask(PlayerPedId(), animDict, animation, 1.0)
     else
-        if useDebug then print('^1Could not load animation') notify('Animation broke') end
+        if useDebug then
+            print('^1Could not load animation')
+            notify('Animation broke')
+        end
     end
 end
 
@@ -200,7 +216,7 @@ local function vehicleHasFlag(vehicle, adv_flags)
 end
 
 local function createControlThread()
-    Citizen.CreateThread(function()
+    CreateThread(function()
         while true do
             local Player = PlayerPedId()
             local vehicle = GetVehiclePedIsUsing(Player)
@@ -226,7 +242,8 @@ local function removeManualFlag(vehicle)
     SetVehicleHandlingInt(vehicle, 'CCarHandlingData', 'strAdvancedFlags', newFlag)
     ModifyVehicleTopSpeed(vehicle, 1.0)
     Entity(vehicle).state:set('isManual', false, true)
-end exports('removeManualFlag', removeManualFlag)
+end
+exports('removeManualFlag', removeManualFlag)
 
 local function addManualFlag(vehicle)
     if useDebug then print('Adding manual flag') end
@@ -240,7 +257,8 @@ local function addManualFlag(vehicle)
     SetVehicleHandlingInt(vehicle, 'CCarHandlingData', 'strAdvancedFlags', newFlag)
     ModifyVehicleTopSpeed(vehicle, 1.0)
     Entity(vehicle).state:set('isManual', true, true)
-end exports('addManualFlag', addManualFlag)
+end
+exports('addManualFlag', addManualFlag)
 
 local function vehicleShouldHaveFlag(vehicle)
     local originalFlag = Entity(vehicle).state.originalFlag
@@ -288,7 +306,7 @@ local function vehicleHasManualGearBox(vehicle)
         createControlThread()
         Entity(vehicle).state:set('isManual', true, true)
         return true
-    else -- if car ISNT a manual
+    else                                                             -- if car ISNT a manual
         if Config.CwTuning then
             if exports['cw-tuning']:vehicleIsAutomatic(vehicle) then -- car should be an automatic
                 Entity(vehicle).state:set('isManual', false, true)
@@ -302,7 +320,8 @@ local function vehicleHasManualGearBox(vehicle)
             if not vehicleHasFlag(vehicle, originalFlag) and not exports['cw-tuning']:vehicleIsManual(vehicle) then -- car should be an automatic and does not have a swap
                 if useDebug then print('Verifying current flag:') end
                 if vehicleHasFlag(vehicle, adv_flags) then
-                    if useDebug then print("car should NOT be a manual by default and does not have a swapped gearbox, but currently has flag") end
+                    if useDebug then print(
+                        "car should NOT be a manual by default and does not have a swapped gearbox, but currently has flag") end
                     removeManualFlag(vehicle)
                     return false
                 end
@@ -320,11 +339,13 @@ local function vehicleHasManualGearBox(vehicle)
             createControlThread()
             return true
         elseif Config.UseOtherCheck then
-            print('^1If you can see this print then someone enabled UseOtherCheck for manual gears but didnt add any code') -- REMOVE THIS IF YOU IMPLEMENT SOMETHING HERE
+            print(
+            '^1If you can see this print then someone enabled UseOtherCheck for manual gears but didnt add any code')       -- REMOVE THIS IF YOU IMPLEMENT SOMETHING HERE
             -- ADD YOUR CHECK HERE
         end
     end
-end exports('vehicleHasManualGearBox', vehicleHasManualGearBox)
+end
+exports('vehicleHasManualGearBox', vehicleHasManualGearBox)
 
 local function setNextGear(veh)
     Citizen.InvokeNative(SETGEARNATIVE, veh, nextGear)
@@ -345,7 +366,7 @@ local function setVehicleCurrentGear(veh, gear, clutch, currentGear)
         return
     end
     if useDebug then
-        notify('next gear: '.. nextGear)
+        notify('next gear: ' .. nextGear)
         print('^5========== NEW GEAR ==========')
         print('veh', veh)
         print('gear', gear)
@@ -354,7 +375,7 @@ local function setVehicleCurrentGear(veh, gear, clutch, currentGear)
     end
     if isGearing then
         if useDebug then print('^3Is gearing. skipping') end
-        SetTimeout(300, function () -- should be 900/clutch but this lets manual gearing be a tad faster
+        SetTimeout(300, function()  -- should be 900/clutch but this lets manual gearing be a tad faster
             if useDebug then print('Resetting clutch') end
             isGearing = false
         end)
@@ -362,10 +383,11 @@ local function setVehicleCurrentGear(veh, gear, clutch, currentGear)
     else
         setNoGear(veh)
         isGearing = true
-        SetTimeout(Config.ClutchTime/clutch, function () -- should be 900/clutch but this lets manual gearing be a tad faster
-            isGearing = false
-            setNextGear(veh)
-        end)
+        SetTimeout(Config.ClutchTime / clutch,
+            function()                                   -- should be 900/clutch but this lets manual gearing be a tad faster
+                isGearing = false
+                setNextGear(veh)
+            end)
     end
     handleAnimation(veh)
 end
@@ -375,26 +397,32 @@ local function shiftUp()
     local vehicle = GetVehiclePedIsUsing(Player)
     local adv_flags = GetVehicleHandlingInt(vehicle, 'CCarHandlingData', 'strAdvancedFlags')
     if vehicle == 0 then return end
-    if not isDriver(vehicle) then if useDebug then print('^1Not driver') end return end
-    if not vehicleHasFlag(vehicle, adv_flags) then if useDebug then print('^2No flag') end return end
+    if not isDriver(vehicle) then
+        if useDebug then print('^1Not driver') end
+        return
+    end
+    if not vehicleHasFlag(vehicle, adv_flags) then
+        if useDebug then print('^2No flag') end
+        return
+    end
     local currentGear = GetVehicleCurrentGear(vehicle)
 
     if useDebug then print('Before: CurrentGear:', currentGear, 'TopGear:', topGear, 'nextGear', nextGear) end
     if currentGear == topGear then return end
 
     if currentGear == lowestGear then
-        nextGear = nextGear+1
+        nextGear = nextGear + 1
         if useDebug then print('Current gear is lowest gear. Next gear will be', nextGear) end
     else
-        nextGear = GetVehicleNextGear(vehicle)+1
+        nextGear = GetVehicleNextGear(vehicle) + 1
         if useDebug then print('Current was not lowest gear. Next gear will be', nextGear) end
     end
 
     if useDebug then print('After: CurrentGear:', currentGear, 'TopGear:', topGear, 'nextGear', nextGear) end
     if nextGear > topGear then nextGear = topGear end
 
-    setVehicleCurrentGear( vehicle, nextGear, clutchUp, currentGear)
-    ModifyVehicleTopSpeed(vehicle,1)
+    setVehicleCurrentGear(vehicle, nextGear, clutchUp, currentGear)
+    ModifyVehicleTopSpeed(vehicle, 1)
 end
 
 local function shiftDown()
@@ -406,14 +434,14 @@ local function shiftDown()
     local currentGear = GetVehicleCurrentGear(vehicle)
 
     if currentGear == lowestGear then
-        local newNextGear = nextGear-1
+        local newNextGear = nextGear - 1
         if newNextGear > lowestGear then nextGear = newNextGear end
     else
-        local newNextGear = currentGear-1
+        local newNextGear = currentGear - 1
         if newNextGear > lowestGear then nextGear = newNextGear end
     end
-    setVehicleCurrentGear( vehicle,  nextGear , clutchDown, currentGear)
-    ModifyVehicleTopSpeed(vehicle,1)
+    setVehicleCurrentGear(vehicle, nextGear, clutchDown, currentGear)
+    ModifyVehicleTopSpeed(vehicle, 1)
 end
 
 
@@ -466,7 +494,7 @@ local function createPassengerThread()
                             print('^1Current gear:', GetVehicleCurrentGear(vehicle))
                             print('^2Should be', Entity(vehicle).state.gearchange)
                         end
-                        nextGear =  GetVehicleCurrentGear(vehicle)
+                        nextGear = GetVehicleCurrentGear(vehicle)
                         setNextGear(vehicle)
                     end
                 end
@@ -491,7 +519,6 @@ local function createDriverThread()
                             print('^1Current gear:', GetVehicleCurrentGear(vehicle))
                             print('^2Should be', Entity(vehicle).state.gearchange)
                         end
-
                     end
                 end
             end
@@ -501,7 +528,7 @@ local function createDriverThread()
     end)
 end
 
-AddEventHandler('gameEventTriggered', function (name, args)
+AddEventHandler('gameEventTriggered', function(name, args)
     if name == 'CEventNetworkPlayerEnteredVehicle' and not isEnteringVehicle then
         local enteredPlayerId = args[1]
         local localPlayerId = PlayerId()
